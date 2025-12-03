@@ -1,5 +1,7 @@
-# Calculations and data for the dashboard map data 
-# By ALehman
+# Calculations and data for the dashboard map data
+## this version creates a tract level file for Georgia
+## I also use "south atlantic" specific NHTS data 
+# By A. Lehman
 # Published December 2025
 
 rm(list = ls()) 
@@ -226,10 +228,14 @@ download_and_load_zip <- function(url, outdir = here("inputs", "nhts_2016")) {
 nhts2022 <- download_and_load_zip("https://nhts.ornl.gov/media/2022/download/csv.zip")
 nhts2017 <- download_and_load_zip("https://nhts.ornl.gov/media/2016/download/csv.zip")
 
-NHTS_personReport<-nhts2022$perv2pub
-NHTS_tripReport<-nhts2022$tripv2pub
-NHTS_hhReport<-nhts2022$hhv2pub
-NHTS_personReport2017<-nhts2017$perv2pub
+NHTS_personReport<-nhts2022$perv2pub%>%
+  filter(CENSUS_D==5)
+NHTS_tripReport<-nhts2022$tripv2pub%>%
+  filter(CENSUS_D==5)
+NHTS_hhReport<-nhts2022$hhv2pub%>%
+  filter(CENSUS_D==5)
+NHTS_personReport2017<-nhts2017$perv2pub%>%
+  filter(CENSUS_D==5)
 rm(nhts2022,nhts2017)
 
 # create df with trip and person reports by matching the person ID
@@ -424,25 +430,14 @@ workingDF <- workingDF%>%
 
 
 #### Add geometries ####
-state_codes <- unique(fips_codes$state_code)[1:51]
 # use the api to pull a shapefile of census tracts
-tracts_usa <- get_decennial(
+tracts_GA <- get_decennial(
   geography = "tract",
   variables = "P1_001N",   # dummy variable
   year = 2020,
-  sumfile = "pl",
   geometry = TRUE,
   keep_geo_vars = TRUE,
-  state = state_codes 
-) 
-
-# use the api to pull a shapefile of congressional districts
-cd_usa <- get_acs(
-  geography = "congressional district",
-  variables = "B01003_001",   # dummy variable
-  year = 2022,
-  geometry = TRUE,
-  state = state_codes 
+  state = "Georgia"
 ) 
 
 # select workingDF1 fields
@@ -454,33 +449,15 @@ workingDF1$NAME<-gsub(".*;","",workingDF1$NAME)
 workingDF1$NAME <- sub(" ", "", workingDF1$NAME)
 
 # add the census shapefile 
-geofile <- tracts_usa %>%
+geofile <- tracts_GA %>%
   select(GEOID, geometry)%>%
-  right_join(workingDF1, by = "GEOID")
+  merge(workingDF1, by = "GEOID", all.x=TRUE)%>%
+  select(-2)
 
-## convert to congressional districts 
-cd_usa$CD119FP = substr(cd_usa$GEOID, 3,4)
-cd_usa<-cd_usa %>%
-  select(1,6,7)%>%
-  st_as_sf()%>%
-  st_transform(st_crs(geofile))%>%
-  st_make_valid()
-
-
-# Compute centroids of geofile and join with the congressional district geometries
-geofile_with_cd <- geofile %>%
-  st_make_valid() %>%
-  st_centroid()%>%
-  st_join(cd_usa, join = st_within) # Join centroids to congressional districts
-
-geofile_clean<- geofile_with_cd %>%
-  st_drop_geometry() %>%  
-  group_by(GEOID.y,NAME) %>% 
-  summarise(across(where(is.numeric), sum, na.rm = TRUE)) %>%
-  merge(cd_usa, by.y = "GEOID", by.x="GEOID.y", all.x=TRUE)%>%
-  st_as_sf()
 
 
 names(geofile_clean)[names(geofile_clean) == "cars"] <- "cars_"
+
+
 write_sf(geofile_clean,here("outputs/baseCalc.geojson)"))
 

@@ -3,9 +3,6 @@
 # December 2025
 
 
-rm(list = ls()) # Clear the work space
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #sets working directory to active document
-
 # package upload ---- 
 packages <- c(
   'sf',
@@ -56,9 +53,7 @@ averageSL=25 #average speed limit in the usa
 
 base_url <- "https://htaindex.cnt.org/download/download.php?data_yr=2022&focus=tract&geoid="
 
-state_fips <- sprintf("%02d", c(1:56))
-state_fips[state_fips == "11"] <- "11"  # Ensure DC is included properly
-state_fips[state_fips == "09"] 
+state_fips <- sprintf("%02d", 13)
 
 temp_dir <- tempdir()
 dir.create(file.path(temp_dir, "hta_downloads"), showWarnings = FALSE)
@@ -102,12 +97,12 @@ state_lookup <- setNames(state.name, state.abb)
 HandTdata <- bind_rows(df_list)%>%
   mutate(
     state = str_extract(cbsa, "\\b[A-Z]{2}\\b"),
-    cbsa=str_replace(cbsa,"\"",""),
-    cbsa=str_replace(cbsa,"\"",""),
+    tract=str_replace(tract,"\"",""),
+    tract=str_replace(tract,"\"",""),
     state = state_lookup[state])
 
 HandTdata1<- HandTdata %>%
-  select(state,
+  select(tract,
          auto_ownership_cost_ami,
          vmt_cost_ami,
          vmt_per_hh_ami,
@@ -117,15 +112,12 @@ HandTdata1<- HandTdata %>%
   mutate(chaufferCOST=vmt_cost_ami*pChauferedTrip)%>%
   mutate(chaufferVMT=vmt_per_hh_ami*pChauferedTrip)%>%
   mutate(chaufferHOURS=vmt_per_hh_ami*pChauferedTrip/averageSL)%>%
-  mutate(h_cost=12*h_cost)
+  mutate(h_cost=12*h_cost)%>% 
+  select(1,5,7:10)
 
-stateCOST<- HandTdata1 %>%
-  group_by(state)%>%
-  summarise(across(everything(), mean, na.rm = TRUE))
 
-write.csv(stateCOST,here("outputs/HandTCost.csv"))
+# another difference is i save the cost and baseline data together 
+ export<- merge(geofile,HandTdata1, by.x="GEOID", by.y="tract")
 
-# atl specific 
-atl<- HandTdata1%>%
-  group_by(cbsa)%>%
-  summarise(across(everything(), mean, na.rm = TRUE))
+ write_sf(export,here("outputs/GAbasecalc.geojson)"))
+ 
