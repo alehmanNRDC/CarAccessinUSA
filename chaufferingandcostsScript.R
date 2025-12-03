@@ -101,7 +101,9 @@ state_lookup <- setNames(state.name, state.abb)
 # match with states 
 HandTdata <- bind_rows(df_list)%>%
   mutate(
-    state = str_extract(cbsa, "\\b[A-Z]{2}\\b"),              
+    state = str_extract(cbsa, "\\b[A-Z]{2}\\b"),
+    cbsa=str_replace(cbsa,"\"",""),
+    cbsa=str_replace(cbsa,"\"",""),
     state = state_lookup[state])
 
 HandTdata1<- HandTdata %>%
@@ -122,3 +124,8 @@ stateCOST<- HandTdata1 %>%
   summarise(across(everything(), mean, na.rm = TRUE))
 
 write.csv(stateCOST,here("outputs/HandTCost.csv"))
+
+# atl specific 
+atl<- HandTdata1%>%
+  group_by(cbsa)%>%
+  summarise(across(everything(), mean, na.rm = TRUE))
