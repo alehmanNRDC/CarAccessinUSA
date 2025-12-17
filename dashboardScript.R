@@ -382,30 +382,32 @@ pdrivingdis<-total_disability_majorityDriving/TLD
 
 # PLACES from CDC is used for data related to disability prevalence
 # CDC places API: get county-level data for the USA (release 2024)
-PLACES <- get_places(geography = "county",
+PLACES <- get_places(geography = "census",
                  release = 2024,
+                 state= "GA",
                  geometry = FALSE,
                  measure = c("DISABILITY","COGNITION"))
 
+
+
 # average across the counties, to find a state average 
-PLACES_state <- PLACES %>% 
+PLACES_modified <- PLACES %>% 
   filter(datavaluetypeid=="CrdPrv")%>% # PLACES reports prevalence as a percent
   mutate(
     data_value = as.numeric(data_value),
-    totalpop18plus = as.numeric(totalpop18plus)
+    totalpop18plus = as.numeric(totalpop18plus),
+    totaldisability = totalpop18plus *data_value / 100
   ) %>%
-  group_by(statedesc, measure) %>%
-  summarise(affected = weighted.mean(data_value, totalpop18plus) )%>%
   pivot_wider(
-    id_cols = statedesc,
+    id_cols = locationname,
     names_from = measure,
-    values_from = affected)
+    values_from = totaldisability)
 
 
 # remove cognitive disabilities from the total, an explanation can be found in the methodology 
-PLACES_state <- PLACES_state %>%
+PLACES_modified <- PLACES_modified %>%
   mutate(
-    disabilities          = `Any disability among adults` - `Cognitive disability among adults`,
+    disabilities= `Any disability among adults` - `Cognitive disability among adults`,
     disability_constraints = (1 - pdrivingdis) * disabilities
   )%>%
   select(1,5)
@@ -452,6 +454,7 @@ workingDF1$NAME <- sub(" ", "", workingDF1$NAME)
 geofile <- tracts_GA %>%
   select(GEOID, geometry)%>%
   merge(workingDF1, by = "GEOID", all.x=TRUE)%>%
+  merge(PLACES_modified, by.x= "GEOID", by.y= "locationname")%>%
   select(-2)
 
 
@@ -459,5 +462,6 @@ geofile <- tracts_GA %>%
 names(geofile_clean)[names(geofile_clean) == "cars"] <- "cars_"
 
 
-write_sf(geofile_clean,here("outputs/baseCalc.geojson)"))
+write_sf(geofile,r"(C:\Users\alehman\Downloads\baseCalc.geojson)")
+
 
