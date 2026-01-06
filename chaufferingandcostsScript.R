@@ -91,15 +91,14 @@ for (fips in state_fips) {
 }
 
 ###### organize H& T data ----
-state_lookup <- setNames(state.name, state.abb)
+
 
 # match with states 
 HandTdata <- bind_rows(df_list)%>%
   mutate(
     state = str_extract(cbsa, "\\b[A-Z]{2}\\b"),
     tract=str_replace(tract,"\"",""),
-    tract=str_replace(tract,"\"",""),
-    state = state_lookup[state])
+    tract=str_replace(tract,"\"",""))
 
 HandTdata1<- HandTdata %>%
   select(tract,
@@ -112,16 +111,8 @@ HandTdata1<- HandTdata %>%
   mutate(chaufferCOST=vmt_cost_ami*pChauferedTrip)%>%
   mutate(chaufferVMT=vmt_per_hh_ami*pChauferedTrip)%>%
   mutate(chaufferHOURS=vmt_per_hh_ami*pChauferedTrip/averageSL)%>%
-<<<<<<< Updated upstream
-  mutate(h_cost=12*h_cost)%>% 
-  select(1,5,7:10)
-=======
-  mutate(housingCost=12*h_cost)%>%
-  select(transitCost,
-         chaufferCOST,
-         chaufferHOURS,
-         housingCost)
->>>>>>> Stashed changes
+  mutate(housingCost=12*h_cost)%>% 
+  select(1,8:11)
 
 
 # another difference is i save the cost and baseline data together 

@@ -1,7 +1,5 @@
-# Calculations and data for the dashboard map data
-## this version creates a tract level file for Georgia
-## I also use "south atlantic" specific NHTS data 
-# By A. Lehman
+# Calculations and data for the dashboard map data 
+# By ALehman
 # Published December 2025
 
 rm(list = ls()) 
@@ -45,7 +43,7 @@ state_codes <- unique(fips_codes$state_code)[1:51]
 
 decennialCensus2020 <- get_decennial(
   geography = "tract", 
-  state = state_codes,    
+  state = 13,    
   geometry = FALSE,
   variables = c(
     urban = "P2_002N",
@@ -92,7 +90,7 @@ variable_names <- set_names(
 pop <- get_acs(
   geography = "tract", 
   variables = variable_names,  
-  state = state_codes,         # Must specify states
+  state = 13,         # Must specify states
   geometry = FALSE             
 )
 
@@ -156,7 +154,7 @@ age <-  #ACS reports age by gender so we have to pull age groups for "men" and "
                          "B01001_001", "B11005_001",
                          "B11005_002", 	
                          "B25046_001"),
-          state = state_codes,
+          state = 13,
           geometry = FALSE)
 
 ACSage =
@@ -227,14 +225,10 @@ download_and_load_zip <- function(url, outdir = here("inputs", "nhts_2016")) {
 nhts2022 <- download_and_load_zip("https://nhts.ornl.gov/media/2022/download/csv.zip")
 nhts2017 <- download_and_load_zip("https://nhts.ornl.gov/media/2016/download/csv.zip")
 
-NHTS_personReport<-nhts2022$perv2pub%>%
-  filter(CENSUS_D==5)
-NHTS_tripReport<-nhts2022$tripv2pub%>%
-  filter(CENSUS_D==5)
-NHTS_hhReport<-nhts2022$hhv2pub%>%
-  filter(CENSUS_D==5)
-NHTS_personReport2017<-nhts2017$perv2pub%>%
-  filter(CENSUS_D==5)
+NHTS_personReport<-nhts2022$perv2pub
+NHTS_tripReport<-nhts2022$tripv2pub
+NHTS_hhReport<-nhts2022$hhv2pub
+NHTS_personReport2017<-nhts2017$perv2pub
 rm(nhts2022,nhts2017)
 
 # create df with trip and person reports by matching the person ID
@@ -383,43 +377,28 @@ pdrivingdis<-total_disability_majorityDriving/TLD
 # CDC places API: get county-level data for the USA (release 2024)
 PLACES <- get_places(geography = "census",
                  release = 2024,
-                 state= "GA",
                  geometry = FALSE,
                  measure = c("DISABILITY","COGNITION"))
 
-
-
 # average across the counties, to find a state average 
-<<<<<<< Updated upstream
-PLACES_modified <- PLACES %>% 
-=======
 PLACES_census <- PLACES %>% 
->>>>>>> Stashed changes
   filter(datavaluetypeid=="CrdPrv")%>% # PLACES reports prevalence as a percent
   mutate(
     data_value = as.numeric(data_value),
-    totalpop18plus = as.numeric(totalpop18plus),
-    totaldisability = totalpop18plus *data_value / 100
+    totalpop18plus = as.numeric(totalpop18plus)
   ) %>%
-<<<<<<< Updated upstream
-=======
   group_by(measure,locationname) %>%
   summarise(affected = weighted.mean(data_value, totalpop18plus) )%>%
->>>>>>> Stashed changes
   pivot_wider(
     id_cols = locationname,
     names_from = measure,
-    values_from = totaldisability)
+    values_from = affected)
 
 
 # remove cognitive disabilities from the total, an explanation can be found in the methodology 
-<<<<<<< Updated upstream
-PLACES_modified <- PLACES_modified %>%
-=======
 PLACES_census <- PLACES_census %>%
->>>>>>> Stashed changes
   mutate(
-    disabilities= `Any disability among adults` - `Cognitive disability among adults`,
+    disabilities          = `Any disability among adults` - `Cognitive disability among adults`,
     disability_constraints = (1 - pdrivingdis) * disabilities
   )%>%
   select(1,5)
@@ -449,18 +428,22 @@ tracts_GA <- get_decennial(
   geography = "tract",
   variables = "P1_001N",   # dummy variable
   year = 2020,
+  sumfile = "pl",
   geometry = TRUE,
   keep_geo_vars = TRUE,
-  state = "Georgia"
+  state = 13 
 ) 
+
+
 
 # select workingDF1 fields
 workingDF1<-workingDF%>%
   select(-c(4:29,31:46,51:53,56:101,108,110))%>%
   mutate(across(where(is.numeric), round))%>%
   mutate(COUNTY_NAME = str_replace(NAME,pattern = ".*;([^-]*);.*", replacement = "\\1"))%>%
-  merge(PLACES_census)%>%
-  merge(HandTdata1)
+  merge(PLACES_census, by.x=GEOID , by.y=locationname )
+
+
 rm(workingDF)  
 
 
@@ -468,21 +451,14 @@ workingDF1$NAME<-gsub(".*;","",workingDF1$NAME)
 workingDF1$NAME <- sub(" ", "", workingDF1$NAME)
 
 # add the census shapefile 
-geofile <- tracts_GA %>%
+geofile <- tracts_usa %>%
   select(GEOID, geometry)%>%
-  merge(workingDF1, by = "GEOID", all.x=TRUE)%>%
-  merge(PLACES_modified, by.x= "GEOID", by.y= "locationname")%>%
-  select(-2)
+  right_join(workingDF1, by = "GEOID")
+
 
 
 
 names(geofile_clean)[names(geofile_clean) == "cars"] <- "cars_"
-<<<<<<< Updated upstream
-
-
-write_sf(geofile,r"(C:\Users\alehman\Downloads\baseCalc.geojson)")
-=======
-write_sf(geofile_clean,r"(C:\Users\alehman\Downloads\GA3.geojson)")
->>>>>>> Stashed changes
+write_sf(export,r"(C:\Users\alehman\Downloads\GA3.geojson)")
 
 
