@@ -112,8 +112,16 @@ HandTdata1<- HandTdata %>%
   mutate(chaufferCOST=vmt_cost_ami*pChauferedTrip)%>%
   mutate(chaufferVMT=vmt_per_hh_ami*pChauferedTrip)%>%
   mutate(chaufferHOURS=vmt_per_hh_ami*pChauferedTrip/averageSL)%>%
+<<<<<<< Updated upstream
   mutate(h_cost=12*h_cost)%>% 
   select(1,5,7:10)
+=======
+  mutate(housingCost=12*h_cost)%>%
+  select(transitCost,
+         chaufferCOST,
+         chaufferHOURS,
+         housingCost)
+>>>>>>> Stashed changes
 
 
 # another difference is i save the cost and baseline data together 

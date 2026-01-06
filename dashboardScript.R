@@ -61,8 +61,7 @@ ruralCensus2020<-
     names_from = 'variable',
     values_from = 'value'
   )%>%
-  mutate(NAME = sub(".*,\\s*.*,\\s*", "", NAME))%>%
-  select(GEOID,urban,rural)%>%
+    select(GEOID,urban,rural)%>%
   mutate(pRural=rural/(urban+rural))
 
 
@@ -391,13 +390,22 @@ PLACES <- get_places(geography = "census",
 
 
 # average across the counties, to find a state average 
+<<<<<<< Updated upstream
 PLACES_modified <- PLACES %>% 
+=======
+PLACES_census <- PLACES %>% 
+>>>>>>> Stashed changes
   filter(datavaluetypeid=="CrdPrv")%>% # PLACES reports prevalence as a percent
   mutate(
     data_value = as.numeric(data_value),
     totalpop18plus = as.numeric(totalpop18plus),
     totaldisability = totalpop18plus *data_value / 100
   ) %>%
+<<<<<<< Updated upstream
+=======
+  group_by(measure,locationname) %>%
+  summarise(affected = weighted.mean(data_value, totalpop18plus) )%>%
+>>>>>>> Stashed changes
   pivot_wider(
     id_cols = locationname,
     names_from = measure,
@@ -405,7 +413,11 @@ PLACES_modified <- PLACES %>%
 
 
 # remove cognitive disabilities from the total, an explanation can be found in the methodology 
+<<<<<<< Updated upstream
 PLACES_modified <- PLACES_modified %>%
+=======
+PLACES_census <- PLACES_census %>%
+>>>>>>> Stashed changes
   mutate(
     disabilities= `Any disability among adults` - `Cognitive disability among adults`,
     disability_constraints = (1 - pdrivingdis) * disabilities
@@ -445,8 +457,13 @@ tracts_GA <- get_decennial(
 # select workingDF1 fields
 workingDF1<-workingDF%>%
   select(-c(4:29,31:46,51:53,56:101,108,110))%>%
-  mutate(across(where(is.numeric), round))
+  mutate(across(where(is.numeric), round))%>%
+  mutate(COUNTY_NAME = str_replace(NAME,pattern = ".*;([^-]*);.*", replacement = "\\1"))%>%
+  merge(PLACES_census)%>%
+  merge(HandTdata1)
 rm(workingDF)  
+
+
 workingDF1$NAME<-gsub(".*;","",workingDF1$NAME)
 workingDF1$NAME <- sub(" ", "", workingDF1$NAME)
 
@@ -460,8 +477,12 @@ geofile <- tracts_GA %>%
 
 
 names(geofile_clean)[names(geofile_clean) == "cars"] <- "cars_"
+<<<<<<< Updated upstream
 
 
 write_sf(geofile,r"(C:\Users\alehman\Downloads\baseCalc.geojson)")
+=======
+write_sf(geofile_clean,r"(C:\Users\alehman\Downloads\GA3.geojson)")
+>>>>>>> Stashed changes
 
 
