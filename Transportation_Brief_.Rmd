@@ -1,0 +1,65 @@
+---
+title: "breif"
+subtitle: "`r params$county`"
+output: word_document
+date: "2026-01-06"
+params: 
+  county: NA
+  tract_data: NA
+---
+
+```{r}
+sections <- params$sections
+d <- params$tract_data
+crashes <- params$crash_data
+
+```
+
+# Attack on traditional transportation in `{r} print(input$COUNTY_NAME)`
+
+Americans used to value lively neighborhoods, green grass, and areas where kids and their families could get around with just their legs or a bike. With the advent of things like cars, social media, and changing values, the way we interact with eachother is fundamentally different. Traditional means of transportation are under attack by car lobbyists.
+
+**What's at stake?**
+
+### Cost of living
+
+The number one concern of constituents is the cost of living. For many families who are hurting, especially those in rural areas, the car is the largest household expense, including some often-overlooked costs such as parking, loan interest, and local taxes to help maintain essential infrastructure like roads. Families need choices to managing costs without changing how they live and work.
+
+```{r map, fig.width=6, fig.height=4}
+library(ggplot2)
+
+ggplot(GAdata) +
+  geom_sf(fill = transitCosts, 
+          color = ifelse(COUNTY_NAME=input$COUNTY_NAME, '#16A595', 'black')) +
+  theme_void()+
+  theme(
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        title = "Annual transportation costs for the average car owning family by census tract",
+        legend.position = "none")+ 
+  scale_fill_distiller(palette = "RdYlGn", n=4)
+```
+
+[Map of costs zoomed on county and highlighting it ]
+
+#### High taxes
+
+The funds needed to construct and maintain roads are not keeping up with the population’s demands. Taxes and registration fees only cover about 58% of road costs, the rest is paid for by the government. Georgia can address road funding shortfalls in short sited ways like raising taxes or investing in more fiscally responsible means or transportation.
+
+[Subsidies roads vs transit]
+
+#### Traffic safety
+
+Traffic deaths are preventable and they’re happening on the roads the state owns and maintains. The state DOT already knows where the most dangerous intersections are and many of them lack basic pedestrian infrastructure. Unmarked crossings and missing sidewalks force people into traffic and create dangerous situations.
+
+## Intercity rail is an affordable alternative
+
+Intercity trains aren’t about changing how Americans live. They’re about lowering costs, protecting infrastructure, and keeping small towns connected. Intercity trains are a cost-saving option that lets rural households keep more of their own money. They give families another option when driving isn’t convenient, like on long trips, in bad weather or areas with limited parking. Trains protect roads the same way bypasses protect small towns, by keeping through-traffic off local infrastructure.
+
+## State DOT can maintain their sidewalks and shoulders
+
+[pie chart ] - Seniors and aging in place As rural populations age, safe sidewalks and shoulders keep people away from vehicles an allow seniors to stay independent without driving. - Kids and schools In many towns, children cross state highways to get to school or the bus stop. Predictable places for pedestrians make roads much safer. - Veterans and people with disabilities For people with disabilities, sidewalks are basic ADA infrastructure, not luxury upgrades.
+
+## Trails connect people and businesses
+
+Georgia is already home to many successful trails that serve walkers, runners, and cyclists, and provide opportunities for transportation, exercise, nature and recreation for both residents and tourists. In addition to making it easier to walk and bike for those who want to do so, trails connect people with shopping centers and encourages visitors to participate, stay longer, and ultimately increase the amount they spend on items like food and beverages. - Economic ben

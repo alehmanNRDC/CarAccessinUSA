@@ -384,7 +384,7 @@ PLACES <- get_places(geography = "census",
 PLACES_census <- PLACES %>% 
   filter(datavaluetypeid=="CrdPrv")%>% # PLACES reports prevalence as a percent
   mutate(
-    data_value = as.numeric(data_value),
+    data_value = as.numeric(data_value)* as.numeric(totalpop18plus),
     totalpop18plus = as.numeric(totalpop18plus)
   ) %>%
   group_by(measure,locationname) %>%
@@ -398,8 +398,8 @@ PLACES_census <- PLACES %>%
 # remove cognitive disabilities from the total, an explanation can be found in the methodology 
 PLACES_census <- PLACES_census %>%
   mutate(
-    disabilities          = `Any disability among adults` - `Cognitive disability among adults`,
-    disability_constraints = (1 - pdrivingdis) * disabilities
+    disabilities= (`Any disability among adults` - `Cognitive disability among adults`)/100,
+    disability_constraints = (1 - pdrivingdis) * disabilities 
   )%>%
   select(1,5)
 
@@ -441,7 +441,7 @@ workingDF1<-workingDF%>%
   select(-c(4:29,31:46,51:53,56:101,108,110))%>%
   mutate(across(where(is.numeric), round))%>%
   mutate(COUNTY_NAME = str_replace(NAME,pattern = ".*;([^-]*);.*", replacement = "\\1"))%>%
-  merge(PLACES_census, by.x=GEOID , by.y=locationname )
+  merge(PLACES_census, by.x="GEOID" , by.y="locationname" )
 
 
 rm(workingDF)  
@@ -451,7 +451,7 @@ workingDF1$NAME<-gsub(".*;","",workingDF1$NAME)
 workingDF1$NAME <- sub(" ", "", workingDF1$NAME)
 
 # add the census shapefile 
-geofile <- tracts_usa %>%
+geofile <- tracts_GA %>%
   select(GEOID, geometry)%>%
   right_join(workingDF1, by = "GEOID")
 
@@ -459,6 +459,6 @@ geofile <- tracts_usa %>%
 
 
 names(geofile_clean)[names(geofile_clean) == "cars"] <- "cars_"
-write_sf(export,r"(C:\Users\alehman\Downloads\GA3.geojson)")
+write_sf(export,r"(C:\Users\alehman\Downloads\GA4.geojson)")
 
 

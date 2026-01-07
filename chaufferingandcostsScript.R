@@ -112,7 +112,7 @@ HandTdata1<- HandTdata %>%
   mutate(chaufferVMT=vmt_per_hh_ami*pChauferedTrip)%>%
   mutate(chaufferHOURS=vmt_per_hh_ami*pChauferedTrip/averageSL)%>%
   mutate(housingCost=12*h_cost)%>% 
-  select(1,8:11)
+  select(1,7:11)
 
 
 # another difference is i save the cost and baseline data together 
