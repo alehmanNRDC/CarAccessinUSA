@@ -115,9 +115,3 @@ HandTdata1<- HandTdata %>%
   mutate(housingCost=12*h_cost)%>% 
   select(1,7:11)
 
-
-# another difference is i save the cost and baseline data together 
- export<- merge(geofile,HandTdata1, by.x="GEOID", by.y="tract")
-
- write_sf(export,here("outputs/GAbasecalc.geojson)"))
- 

@@ -319,6 +319,6 @@ export<-export  %>%
   mutate(Pdisability=100*disability_constraints/TotalPopulationover10)%>%
   mutate(Ptotal=P10to15+PcarConstrainedAdults+PzeroCarAdults+Pover75Constrained+Pdisability)
 
-write_sf(export1,r"(C:\Users\alehman\Downloads\GA7.geojson)")
+write_sf(export,r"(C:\Users\alehman\Downloads\GA7.geojson)")
 write_sf(export,here("outputs/GAbasecalc.geojson)"))
 
