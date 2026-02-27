@@ -27,13 +27,14 @@ download_and_load_zip <- function(url, outdir = here("inputs", "nhts_2016")) {
 
 #### nhts links and function 
 nhts2022 <- download_and_load_zip("https://nhts.ornl.gov/media/2022/download/csv.zip")
-nhts2017 <- download_and_load_zip("https://nhts.ornl.gov/media/2016/download/csv.zip")
 
-NHTS_personReport<-nhts2022$perv2pub
-NHTS_tripReport<-nhts2022$tripv2pub
-NHTS_hhReport<-nhts2022$hhv2pub
-NHTS_personReport2017<-nhts2017$perv2pub
-rm(nhts2022,nhts2017)
+NHTS_personReport<-nhts2022$perv2pub%>%
+  filter(CENSUS_D== 5)
+NHTS_tripReport<-nhts2022$tripv2pub%>%
+  filter(CENSUS_D== 5)
+NHTS_hhReport<-nhts2022$hhv2pub%>%
+  filter(CENSUS_D== 5)
+rm(nhts2022)
 
 # create df with trip and person reports by matching the person ID
 NHTS_tripReport$ID<-paste(NHTS_tripReport$HOUSEID,NHTS_tripReport$PERSONID)
