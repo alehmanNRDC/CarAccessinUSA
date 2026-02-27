@@ -99,6 +99,9 @@ men_drivers_over75 = sum(NHTS_personReport$WTPERFIN[
 pWomenOver75Driver= women_drivers_over75/women_over75
 pmenOver75Driver= men_drivers_over75/men_over75
 
+1-pWomenOver75Driver
+1-pmenOver75Driver
+
 rm(women_drivers_over75,women_over75,men_over75,men_drivers_over75)
 
 # mode choice ----
@@ -184,3 +187,19 @@ NHTS_schoolTrips<- NHTS_personReport2017 %>%
   ungroup() %>%
   # Calculate percentage
   mutate(percent = total_trips / sum(total_trips) * 100) 
+
+# disability mode
+
+diability_altMODE<- NHTS_personReport %>%
+  filter(R_AGE>18,
+         CONDNONE ==2)%>%
+  mutate(mode = case_when(
+    CONDRIDE == 1 ~ "Asked others for rides",
+    CONDSHARE == 1 ~ "Used rideshare",
+    CONDSPEC == 1 ~ "Used special transportation",
+    CONDTRAV == 1 ~ "Reduced travel",
+    TRUE ~ NA_character_
+  )) %>%
+  group_by(mode) %>%
+  summarise(total_trips = sum(WTPERFIN, na.rm = TRUE), .groups = "drop") %>%
+  mutate(percent = total_trips / sum(total_trips) * 100)

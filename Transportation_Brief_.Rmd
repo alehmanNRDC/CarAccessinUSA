@@ -15,7 +15,7 @@ crashes <- params$crash_data
 
 ```
 
-# Attack on traditional transportation in `{r} print(input$COUNTY_NAME)`
+# Attack on traditional transportation in `{r} print(params$county)`
 
 Americans used to value lively neighborhoods, green grass, and areas where kids and their families could get around with just their legs or a bike. With the advent of things like cars, social media, and changing values, the way we interact with eachother is fundamentally different. Traditional means of transportation are under attack by car lobbyists.
 
@@ -27,30 +27,68 @@ The number one concern of constituents is the cost of living. For many families 
 
 ```{r map, fig.width=6, fig.height=4}
 library(ggplot2)
+library(sf)
+library(dplyr)
 
-ggplot(GAdata) +
-  geom_sf(fill = transitCosts, 
-          color = ifelse(COUNTY_NAME=input$COUNTY_NAME, '#16A595', 'black')) +
-  theme_void()+
-  theme(
-        axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        title = "Annual transportation costs for the average car owning family by census tract",
-        legend.position = "none")+ 
-  scale_fill_distiller(palette = "RdYlGn", n=4)
+d <- params$tract_data
+county_name <- params$county
+
+d <- d |>
+  mutate(is_selected = COUNTY_NAME == county_name)
+
+ggplot(d) +
+  geom_sf(aes(fill = transitCost), 
+          color = "grey",
+          linewidth=0.05)+
+  geom_sf(
+    data = d |> filter(is_selected),
+    fill = NA,
+    color = "#16A595",
+    linewidth = 0.8)+
+  labs(title = "Annual transportation costs for the average car owning family by census tract",
+        subtitle = county_name)+ 
+  scale_fill_distiller(palette = "RdYlGn", n=4)+
+  theme_void()
 ```
-
-[Map of costs zoomed on county and highlighting it ]
 
 #### High taxes
 
 The funds needed to construct and maintain roads are not keeping up with the population’s demands. Taxes and registration fees only cover about 58% of road costs, the rest is paid for by the government. Georgia can address road funding shortfalls in short sited ways like raising taxes or investing in more fiscally responsible means or transportation.
 
-[Subsidies roads vs transit]
+[![](externalitiesbymode.png)](https://nyc.streetsblog.org/2025/06/23/car-harms-monday-why-driving-is-bad-for-business-household-wealth-and-community-prosperity-in-8-images)
+
+This figure compares external costs, including public infrastructure subsidies, of six modes. Driving has higher costs per passenger-mile and since motorists travel far more than non-drivers their annual external costs are high. Source: [**Litman 2025**](https://www.vtpi.org/tca)
 
 #### Traffic safety
 
 Traffic deaths are preventable and they’re happening on the roads the state owns and maintains. The state DOT already knows where the most dangerous intersections are and many of them lack basic pedestrian infrastructure. Unmarked crossings and missing sidewalks force people into traffic and create dangerous situations.
+
+```{r map, fig.width=6, fig.height=4}
+library(ggplot2)
+library(sf)
+library(dplyr)
+
+c <- params$tract_data
+county_name <- params$county
+
+c <- c |>
+  mutate(is_selected = COUNTY_NAME == county_name)
+
+ggplot(c) +
+  geom_sf(aes(fill = transitCost), 
+          color = "grey",
+          linewidth=0.05)+
+  geom_sf(
+    data = d |> filter(is_selected),
+    fill = NA,
+    color = "#16A595",
+    linewidth = 0.8)+
+  labs(title = "Annual transportation costs for the average car owning family by census tract",
+        subtitle = county_name)+ 
+  scale_fill_distiller(palette = "RdYlGn", n=4)+
+  theme_void()
+
+```
 
 ## Intercity rail is an affordable alternative
 

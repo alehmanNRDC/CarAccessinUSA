@@ -223,13 +223,18 @@ download_and_load_zip <- function(url, outdir = here("inputs", "nhts_2016")) {
 
 #### nhts links and function 
 nhts2022 <- download_and_load_zip("https://nhts.ornl.gov/media/2022/download/csv.zip")
-nhts2017 <- download_and_load_zip("https://nhts.ornl.gov/media/2016/download/csv.zip")
+#nhts2017 <- download_and_load_zip("https://nhts.ornl.gov/media/2016/download/csv.zip")
 
-NHTS_personReport<-nhts2022$perv2pub
-NHTS_tripReport<-nhts2022$tripv2pub
-NHTS_hhReport<-nhts2022$hhv2pub
-NHTS_personReport2017<-nhts2017$perv2pub
-rm(nhts2022,nhts2017)
+# census_D is the region 
+NHTS_personReport<-nhts2022$perv2pub%>%
+  filter(CENSUS_D==05)
+  
+NHTS_tripReport<-nhts2022$tripv2pub%>%
+  filter(CENSUS_D==05)
+NHTS_hhReport<-nhts2022$hhv2pub%>%
+  filter(CENSUS_D==05)
+#NHTS_personReport2017<-nhts2017$perv2pub
+rm(nhts2022)
 
 # create df with trip and person reports by matching the person ID
 NHTS_tripReport$ID<-paste(NHTS_tripReport$HOUSEID,NHTS_tripReport$PERSONID)
@@ -373,6 +378,7 @@ TLD=sum(NHTS_personReport$WTPERFIN[
 pdrivingdis<-total_disability_majorityDriving/TLD
 
 
+
 # PLACES from CDC is used for data related to disability prevalence
 # CDC places API: get county-level data for the USA (release 2024)
 PLACES <- get_places(geography = "census",
@@ -404,6 +410,32 @@ PLACES_census <- PLACES_census %>%
   select(1,5)
 
 rm(PLACES)
+# the dashboard data point 
+
+qualified_ids_dash <- peopletrip %>%
+  filter(MEDCOND == "1" &
+           peopletrip$R_AGE.x > 18 )%>%      # now i dont care if they are  75 or in a cared hh             
+  group_by(ID) %>%
+  summarise(
+    total_trips = n(),
+    qualifying_trips = sum(TRPTRANS %in% c(1, 2, 3, 4, 6, 7) & WHODROVE == 1)
+  ) %>%
+  filter(qualifying_trips > total_trips / 2) %>%  # Keep if majority of trips qualify
+  pull(ID)
+
+
+total_disability_majorityDriving <- peopletrip %>%
+  filter(ID %in% qualified_ids_dash) %>%
+  distinct(ID, .keep_all = TRUE) %>%  # Ensure one row per person
+  summarise(total_weight = sum(WTPERFIN, na.rm = TRUE)) %>%
+  pull(total_weight)
+
+
+# the percent of people with disabilities that consistently drive and have access to a car, we will use the inverse of this 
+# this is the data point in the dashboard 
+1-total_disability_majorityDriving/TLD
+
+
 
 ## iv. People 75+ and driving status  ----
 drivers_over75 = sum(NHTS_personReport$WTPERFIN[
@@ -421,6 +453,21 @@ workingDF <- workingDF%>%
   mutate(elderlyDrivers=pDrivingover75 * over75,
        elderlyNotDriving= (1-pDrivingover75)* over75)
 
+
+CONDNIGH
+
+
+
+# driving limitation for dash
+
+drivers_over75_night = 
+  sum(NHTS_personReport$WTPERFIN[
+  NHTS_personReport$DRIVER == "1" & 
+    NHTS_personReport$CONDNIGH == 1 &
+    NHTS_personReport$R_AGE >= 75], 
+  na.rm = TRUE)
+
+(drivers_over75_night/all_over75)+(1-pDrivingover75)
 
 #### Add geometries ####
 # use the api to pull a shapefile of census tracts
