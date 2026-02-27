@@ -1,6 +1,6 @@
-# Calculations and data for the dashboard map data 
+# Calculations and data for the GA dashboard map data 
 # By ALehman
-# Published December 2025
+# Published Feb 2026
 
 rm(list = ls()) 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) #sets working directory to active document
@@ -33,142 +33,14 @@ packages <- c(
 if(!require(pacman)) install.packages('pacman')
 pacman::p_load(packages,character.only = T)
 
+# --- process data ----
+# the following scripts, all of which live in this folder, prepare the data inputs 
 
-# US. Census Inputs ####
-## use census API to pull three types of data 
-## i. Rural data  -----
-# Using 2020 census rural and urban population. If 50% or more of the population in a census tract is rural, it is flagged as a rural tract 
-## upload 2020 Census (Demographic and Housing Characteristics File) with rural and urban population
-state_codes <- unique(fips_codes$state_code)[1:51] 
-
-decennialCensus2020 <- get_decennial(
-  geography = "tract", 
-  state = 13,    
-  geometry = FALSE,
-  variables = c(
-    urban = "P2_002N",
-    rural = "P2_003N"
-  ),
-  year = 2020,
-  sumfile = "dhc"
-)
-
-ruralCensus2020<- 
-  pivot_wider(
-    select(decennialCensus2020,NAME, GEOID, variable, value),
-    names_from = 'variable',
-    values_from = 'value'
-  )%>%
-    select(GEOID,urban,rural)%>%
-  mutate(pRural=rural/(urban+rural))
+source("census-inputs.R")
+source("NHTS-inputs.R")
 
 
-## ii. Household car ownership data  ----
-vars = load_variables( 2020,'acs5') |> 
-  as.data.table()
-
-B08201 <- vars %>% 
-  filter(grepl('B08201', name)) %>% 
-  slice(7:30) %>%  
-  pull(name) # Creates a list of all the B08201 (household members & number of vehicles) sub variables 
-
-# add, B01003_001, total population
-B08201 <- c(B08201, "B01003_001")
-
-# rename: P= the number of people in a household and V= the number of vehicles
-variable_names <- set_names(
-  B08201,
-  c('TP1', 'P1V0', 'P1V1', 'P1V2', 'P1V3', 'P1V4', 
-    'TP2', 'P2V0', 'P2V1', 'P2V2', 'P2V3', 'P2V4', 
-    'TP3', 'P3V0', 'P3V1', 'P3V2', 'P3V3', 'P3V4', 
-    'TP4', 'P4V0', 'P4V1', 'P4V2', 'P4V3', 'P4V4', 
-    'TotalPopulation')
-)
-
-
-# Loop through the states, pulling data at the census tract level from census API 
-pop <- get_acs(
-  geography = "tract", 
-  variables = variable_names,  
-  state = 13,         # Must specify states
-  geometry = FALSE             
-)
-
-ACS2021 = 
-  pivot_wider(
-    select(pop,NAME, GEOID, variable, estimate),
-    names_from = 'variable',
-    values_from = 'estimate'
-  )%>%
-  mutate(NAME = sub(".*,\\s*.*,\\s*", "", NAME))
-
-
-# Develop factor to account for the fact that 4+ people households might have more than 4 people 
-hh_size<- ACS2021%>% 
-  mutate(pop_3orless=TP1 + 2*TP2+ 3*TP3)%>% # ppl in 4 or more p hh = [average size] * [# 4+ p hh] = state pop - [# 1p hh] - 2* [# 2 p hh] - 3* [# 3 p hh] 
-  mutate(pop_4andmore= TotalPopulation - pop_3orless)%>%
-  mutate(avgsize4and= pop_4andmore/  TP4)%>%
-  select(GEOID, avgsize4and)
-
-ACS2021<-merge(ACS2021,hh_size, by="GEOID") #add the adjustment factor into ACS dataframe 
-ACS2021$avgsize4and <- ifelse(is.na(ACS2021$avgsize4and) | 
-                                ACS2021$avgsize4and < 4 | 
-                                ACS2021$avgsize4and > 10 | 
-                                is.infinite(ACS2021$avgsize4and), 
-                              4, 
-                              ACS2021$avgsize4and)  # Replace values in avgsize4and that are less than 4, greater than 10, or invalid (NA/Inf)
-
-# Rescale population
-# the reporting at the household level for ACS (the source of the car ownership data) is different than the census, so there is a slight difference in populations. 
-# I use the ratio of ACS to Census total population to scale up all calculations done on household outputs
-ACS2021<- ACS2021%>%
-  mutate(calculatedPop=TP1+
-           2*(TP2)+
-           3*(TP3)+
-           avgsize4and*(TP4))%>%
-  filter(calculatedPop> 0)%>%
-  mutate(calculatedHH=TP1+
-           TP2+
-           TP3+
-           TP4)
-
-ACS2021$avgsize4and <- ifelse(ACS2021$calculatedPop == 0 , 
-                              0, 
-                              ACS2021$avgsize4and)
-
-ACS2021$scaleFactor<-ACS2021$TotalPopulation/ ACS2021$calculatedPop
-ACS2021[, 4:27] <- ACS2021[, 4:27] * ACS2021$scaleFactor
-
-## iii. Age data  -----
-# ACS B01001, B11005_001, and B11005_002 are age variables 
-# B11005_001 and B11005_002 are the number of households and number of households with kids, respectively 
-
-age <-  #ACS reports age by gender so we have to pull age groups for "men" and "women" then consolidate
-  get_acs(geography = "tract", 
-          variables = 	c("B01001_003","B01001_027",
-                         "B01001_004","B01001_028", 
-                         "B01001_005", "B01001_029", 
-                         "B01001_023", "B01001_024",
-                         "B01001_047", "B01001_048",
-                         "B01001_025", "B01001_049", 
-                         "B01001_001", "B11005_001",
-                         "B11005_002", 	
-                         "B25046_001"),
-          state = 13,
-          geometry = FALSE)
-
-ACSage =
-  pivot_wider(
-    select(age,GEOID, variable, estimate),
-    names_from = 'variable',
-    values_from = 'estimate'
-  )%>% 
-  rename(hh_totalcount = 15, hh_w_kids = 16, cars=17)%>%
-  mutate(young10to15=B01001_005+ B01001_029)%>%
-  mutate(under10=B01001_003+B01001_004+B01001_028+B01001_027)%>%
-  mutate(over75=B01001_023+B01001_047 +B01001_025+ B01001_049+ B01001_024+ B01001_048)%>%mutate(pHHwKids=100*(hh_w_kids/hh_totalcount))
-
-### Combines ACS data into one DF ----
+### Combines ACS data into one DF 
 workingDF<-merge(ACS2021,ACSage, by="GEOID")%>%
   mutate(pkid=(young10to15+under10)/B01001_001)%>%
   mutate(p10to15=young10to15/(B01001_001-under10))%>%
@@ -198,52 +70,9 @@ for (ht in household_types) {
   }
 }
 
-
-# NHTS data inputs ####
-# remove unneeded variables
 rm(decennialCensus2020,household_types,ACSage,age,vars,pop,ACS2021, hh_size, B08201, state_codes,variable_names)
-# NHTS doesn't have an api so I use a function and links to the zip files to download locally
-download_and_load_zip <- function(url, outdir = here("inputs", "nhts_2016")) {
-  
-  dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
-  
-  zip_path <- file.path(outdir, "data.zip")
-  download.file(url, zip_path, mode = "wb")
-  
-  unzip(zip_path, exdir = outdir)
-  
-  csv_files <- list.files(outdir, pattern = "\\.csv$", full.names = TRUE)
-  
-  data_list <- lapply(csv_files, read.csv)
-  
-  names(data_list) <- tools::file_path_sans_ext(basename(csv_files))
-  
-  return(data_list)
-}
-
-#### nhts links and function 
-nhts2022 <- download_and_load_zip("https://nhts.ornl.gov/media/2022/download/csv.zip")
-#nhts2017 <- download_and_load_zip("https://nhts.ornl.gov/media/2016/download/csv.zip")
-
-# census_D is the region 
-NHTS_personReport<-nhts2022$perv2pub%>%
-  filter(CENSUS_D==05)
-  
-NHTS_tripReport<-nhts2022$tripv2pub%>%
-  filter(CENSUS_D==05)
-NHTS_hhReport<-nhts2022$hhv2pub%>%
-  filter(CENSUS_D==05)
-#NHTS_personReport2017<-nhts2017$perv2pub
-rm(nhts2022)
-
-# create df with trip and person reports by matching the person ID
-NHTS_tripReport$ID<-paste(NHTS_tripReport$HOUSEID,NHTS_tripReport$PERSONID)
-NHTS_personReport$ID<-paste(NHTS_personReport$HOUSEID,NHTS_personReport$PERSONID)
-peopletrip<-merge(NHTS_tripReport, NHTS_personReport, by="ID")
 
 
-
-# Calculations ####
 ## i. Degrees of access -----
 # examining at households based on their ratio of adults to cars and people to cars 
 workingDF <- workingDF %>%
@@ -454,12 +283,7 @@ workingDF <- workingDF%>%
        elderlyNotDriving= (1-pDrivingover75)* over75)
 
 
-CONDNIGH
-
-
-
-# driving limitation for dash
-
+# driving limitation
 drivers_over75_night = 
   sum(NHTS_personReport$WTPERFIN[
   NHTS_personReport$DRIVER == "1" & 
@@ -467,7 +291,19 @@ drivers_over75_night =
     NHTS_personReport$R_AGE >= 75], 
   na.rm = TRUE)
 
-(drivers_over75_night/all_over75)+(1-pDrivingover75)
+# no disability, HH car and elderly constrained 
+driverandowner_over75_night = 
+  sum(NHTS_personReport$WTPERFIN[
+    NHTS_personReport$DRIVER == "1" & 
+      NHTS_personReport$MEDCOND != "1" &
+      NHTS_personReport$CONDNIGH == 1 &
+      NHTS_personReport$R_AGE >= 75 & 
+      NHTS_personReport$HHVEHCNT >= 1], 
+    na.rm = TRUE)
+pover75constrained=driverandowner_over75_night/all_over75
+pover75constrained
+
+
 
 #### Add geometries ####
 # use the api to pull a shapefile of census tracts
@@ -503,9 +339,20 @@ geofile <- tracts_GA %>%
   right_join(workingDF1, by = "GEOID")
 
 
+# add the H&T data 
+source("chaufferingandcostsScript.R")
+export<- merge(geofile,HandTdata1, by.x="GEOID", by.y="tract")
 
 
-names(geofile_clean)[names(geofile_clean) == "cars"] <- "cars_"
-write_sf(export,r"(C:\Users\alehman\Downloads\GA4.geojson)")
+# topline total ----
+export<-export  %>%
+  mutate(PzeroCarAdults=100*zeroCarAdults/TotalPopulationover10)%>%
+  mutate(P10to15=100*young10to15/TotalPopulationover10)%>%
+  mutate(PcarConstrainedAdults=100*twoMorePlusAdults/TotalPopulationover10)%>%
+  mutate(Pover75Constrained=100*over75*pover75constrained/TotalPopulationover10)%>%
+  mutate(Pdisability=100*disability_constraints/TotalPopulationover10)%>%
+  mutate(Ptotal=P10to15+PcarConstrainedAdults+PzeroCarAdults+Pover75Constrained+Pdisability)
 
+write_sf(export1,r"(C:\Users\alehman\Downloads\GA6.geojson)")
+write_sf(export,here("outputs/GAbasecalc.geojson)"))
 
